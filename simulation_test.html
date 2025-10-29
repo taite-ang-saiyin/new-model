@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CogniVerse Simulation Tester</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 2rem;
+      max-width: 960px;
+    }
+    fieldset {
+      border: 1px solid #999;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.5rem;
+    }
+    legend {
+      font-weight: 600;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    textarea,
+    input[type="number"],
+    input[type="text"],
+    input[type="url"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font: inherit;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      margin-right: 0.5rem;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #475569;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.75rem 1rem;
+    }
+    .inline-controls {
+      margin-top: 0.5rem;
+    }
+    .item-list {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 6px;
+      background: #0f172a08;
+    }
+    .item-list ul {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .item-list button {
+      background: #dc2626;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #0f172a10;
+      border-radius: 8px;
+      padding: 1rem;
+      max-height: 480px;
+      overflow: auto;
+    }
+    .status {
+      margin-bottom: 1rem;
+      font-weight: 500;
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+  <h1>CogniVerse Simulation Tester</h1>
+  <p>
+    Use this page to exercise the simulation endpoints exposed by
+    <code>backend.api</code> (Vertex-backed). Start the FastAPI service locally via
+    <code>uvicorn backend.api:app --reload</code> or point the client at your deployed URL.
+  </p>
+
+  <fieldset>
+    <legend>Connection</legend>
+    <label for="baseUrl">API base URL</label>
+    <input
+      id="baseUrl"
+      type="url"
+      value="http://localhost:8000"
+      placeholder="https://your-service.onrender.com"
+    />
+    <button id="saveBaseUrl" class="secondary">Update Base URL</button>
+    <div id="connectionStatus" class="status"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Create Simulation</legend>
+    <label for="scenario">Scenario description</label>
+    <textarea
+      id="scenario"
+      rows="4"
+      placeholder="Describe the mission, conflict, or environment for the simulation..."
+    ></textarea>
+    <fieldset>
+      <legend>Custom Agents (optional)</legend>
+      <div class="grid">
+        <label>
+          Slot (0-4)
+          <input id="agentSlot" type="number" min="0" max="4" placeholder="0" />
+        </label>
+        <label>
+          Name
+          <input id="agentName" type="text" placeholder="Agent name" />
+        </label>
+        <label>
+          Role
+          <input id="agentRole" type="text" placeholder="Strategist, engineer, …" />
+        </label>
+        <label>
+          Persona
+          <input id="agentPersona" type="text" placeholder="Persona summary" />
+        </label>
+        <label>
+          Cognitive bias
+          <input id="agentBias" type="text" placeholder="e.g. confirmation bias" />
+        </label>
+        <label>
+          Emotional state
+          <input id="agentEmotion" type="text" placeholder="Calm, anxious, …" />
+        </label>
+        <label>
+          MBTI
+          <input id="agentMbti" type="text" placeholder="INTJ" />
+        </label>
+        <label>
+          Skills (comma separated)
+          <input id="agentSkills" type="text" placeholder="analysis, negotiation" />
+        </label>
+        <label>
+          Constraints (comma separated)
+          <input id="agentConstraints" type="text" placeholder="Protect civilians" />
+        </label>
+        <label>
+          Quirks (comma separated)
+          <input id="agentQuirks" type="text" placeholder="Hums when thinking" />
+        </label>
+        <label>
+          Motivation
+          <input id="agentMotivation" type="text" placeholder="Primary drive" />
+        </label>
+        <label>
+          Biography
+          <textarea id="agentBiography" rows="2" placeholder="Background details"></textarea>
+        </label>
+      </div>
+      <div class="inline-controls">
+        <button id="addAgentBtn" type="button">Add Agent Seed</button>
+        <button id="clearAgentsBtn" type="button" class="secondary">Clear Agents</button>
+      </div>
+      <div id="agentList" class="item-list">
+        <strong>Seeds:</strong>
+        <ul id="agentItems"><li>None</li></ul>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Relationship Seeds (optional)</legend>
+      <div class="grid">
+        <label>
+          From slot
+          <input id="relFrom" type="number" min="0" max="4" placeholder="0" />
+        </label>
+        <label>
+          To slot
+          <input id="relTo" type="number" min="0" max="4" placeholder="1" />
+        </label>
+        <label>
+          Strength (-1 to 1)
+          <input id="relStrength" type="number" step="0.1" min="-1" max="1" value="0" />
+        </label>
+      </div>
+      <div class="inline-controls">
+        <button id="addRelBtn" type="button">Add Relationship</button>
+        <button id="clearRelBtn" type="button" class="secondary">Clear Relationships</button>
+      </div>
+      <div id="relList" class="item-list">
+        <strong>Relationships:</strong>
+        <ul id="relItems"><li>None</li></ul>
+      </div>
+    </fieldset>
+
+    <button id="createBtn">Create Simulation</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Simulation Controls</legend>
+    <p>Simulation ID: <span id="simId">(none yet)</span></p>
+    <label for="advanceSteps">Advance turns</label>
+    <div>
+      <input id="advanceSteps" type="number" min="1" value="1" style="max-width: 120px;" />
+      <button id="advanceBtn">Advance</button>
+    </div>
+    <label for="fatePrompt">Fate prompt (optional)</label>
+    <textarea
+      id="fatePrompt"
+      rows="3"
+      placeholder="Describe an unexpected twist to inject into the story..."
+    ></textarea>
+    <button id="fateBtn">Trigger Fate Event</button>
+    <button id="refreshBtn" class="secondary">Refresh State</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Latest Response</legend>
+    <pre id="output">{}</pre>
+  </fieldset>
+
+  <script>
+    const output = document.getElementById("output");
+    const simIdLabel = document.getElementById("simId");
+    const statusBox = document.getElementById("connectionStatus");
+
+    const state = {
+      baseUrl: localStorage.getItem("cogniverseBaseUrl") || "http://localhost:8000",
+      simulationId: null,
+    };
+    const customAgents = [];
+    const relationshipSeeds = [];
+
+    document.getElementById("baseUrl").value = state.baseUrl;
+    updateStatus(`Base URL set to ${state.baseUrl}`);
+
+    document.getElementById("saveBaseUrl").addEventListener("click", () => {
+      const input = document.getElementById("baseUrl").value.trim();
+      if (!input) {
+        updateStatus("Please provide a valid base URL.", true);
+        return;
+      }
+      state.baseUrl = input.replace(/\/$/, "");
+      localStorage.setItem("cogniverseBaseUrl", state.baseUrl);
+      updateStatus(`Base URL updated to ${state.baseUrl}`);
+    });
+
+    document.getElementById("createBtn").addEventListener("click", async () => {
+      const scenario = document.getElementById("scenario").value.trim();
+      if (!scenario) {
+        updateStatus("Scenario cannot be empty.", true);
+        return;
+      }
+      try {
+        const res = await api("POST", "/simulations", {
+          scenario,
+          custom_agents: customAgents,
+          agent_profiles: [],
+          relationships: relationshipSeeds,
+        });
+        state.simulationId = res?.simulation?.id ?? null;
+        simIdLabel.textContent = state.simulationId || "(creation failed)";
+        render(res);
+        updateStatus("Simulation created.");
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+    document.getElementById("advanceBtn").addEventListener("click", async () => {
+      if (!ensureSimulation()) return;
+      const steps = Number(document.getElementById("advanceSteps").value || 1);
+      if (!Number.isInteger(steps) || steps < 1) {
+        updateStatus("Steps must be a positive integer.", true);
+        return;
+      }
+      try {
+        const res = await api("POST", `/simulations/${state.simulationId}/advance`, {
+          steps,
+        });
+        render(res);
+        updateStatus(`Advanced ${steps} turn(s).`);
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+    document.getElementById("fateBtn").addEventListener("click", async () => {
+      if (!ensureSimulation()) return;
+      const prompt = document.getElementById("fatePrompt").value.trim();
+      try {
+        const res = await api("POST", `/simulations/${state.simulationId}/fate`, {
+          prompt: prompt || null,
+        });
+        render(res);
+        updateStatus("Fate event triggered.");
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", async () => {
+      if (!ensureSimulation()) return;
+      try {
+        const res = await api("GET", `/simulations/${state.simulationId}`);
+        render(res);
+        updateStatus("Simulation refreshed.");
+      } catch (err) {
+        handleError(err);
+      }
+    });
+
+    function ensureSimulation() {
+      if (!state.simulationId) {
+        updateStatus("Create a simulation first.", true);
+        return false;
+      }
+      return true;
+    }
+
+    async function api(method, path, body) {
+      const url = `${state.baseUrl}${path}`;
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: method === "GET" ? undefined : JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const payload = await response.text();
+        throw new Error(`${response.status} ${response.statusText}: ${payload}`);
+      }
+      return response.json();
+    }
+
+    function render(payload) {
+      output.textContent = JSON.stringify(payload, null, 2);
+      const id = payload?.simulation?.id;
+      if (id) {
+        state.simulationId = id;
+        simIdLabel.textContent = id;
+      }
+    }
+
+    // ----- Custom agent helpers -------------------------------------------------
+    function parseList(value) {
+      if (!value) return undefined;
+      const items = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      return items.length ? items : undefined;
+    }
+
+    function renderAgentSeeds() {
+      const list = document.getElementById("agentItems");
+      if (!customAgents.length) {
+        list.innerHTML = "<li>None</li>";
+        return;
+      }
+      list.innerHTML = "";
+      customAgents.forEach((agent, index) => {
+        const item = document.createElement("li");
+        const summary = `${agent.slot}: ${agent.name || "Unnamed"} (${agent.role || "role?"})`;
+        item.textContent = summary;
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.type = "button";
+        removeBtn.addEventListener("click", () => {
+          customAgents.splice(index, 1);
+          renderAgentSeeds();
+        });
+        item.appendChild(document.createTextNode(" "));
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+    }
+
+    document.getElementById("addAgentBtn").addEventListener("click", () => {
+      const slot = Number(document.getElementById("agentSlot").value);
+      if (!Number.isInteger(slot) || slot < 0 || slot > 4) {
+        updateStatus("Agent slot must be between 0 and 4.", true);
+        return;
+      }
+      const agent = {
+        slot,
+        name: document.getElementById("agentName").value.trim() || undefined,
+        role: document.getElementById("agentRole").value.trim() || undefined,
+        persona: document.getElementById("agentPersona").value.trim() || undefined,
+        cognitive_bias: document.getElementById("agentBias").value.trim() || undefined,
+        emotional_state: document.getElementById("agentEmotion").value.trim() || undefined,
+        mbti: document.getElementById("agentMbti").value.trim() || undefined,
+        motivation: document.getElementById("agentMotivation").value.trim() || undefined,
+        biography: document.getElementById("agentBiography").value.trim() || undefined,
+        skills: parseList(document.getElementById("agentSkills").value),
+        constraints: parseList(document.getElementById("agentConstraints").value),
+        quirks: parseList(document.getElementById("agentQuirks").value),
+      };
+      customAgents.push(agent);
+      renderAgentSeeds();
+      updateStatus(`Added agent seed for slot ${slot}.`);
+    });
+
+    document.getElementById("clearAgentsBtn").addEventListener("click", () => {
+      customAgents.splice(0, customAgents.length);
+      renderAgentSeeds();
+      updateStatus("Cleared all custom agent seeds.");
+    });
+
+    // ----- Relationship helpers -------------------------------------------------
+    function renderRelationships() {
+      const list = document.getElementById("relItems");
+      if (!relationshipSeeds.length) {
+        list.innerHTML = "<li>None</li>";
+        return;
+      }
+      list.innerHTML = "";
+      relationshipSeeds.forEach((rel, index) => {
+        const item = document.createElement("li");
+        item.textContent = `${rel.from_slot} -> ${rel.to_slot} (${rel.strength.toFixed(2)})`;
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.type = "button";
+        removeBtn.addEventListener("click", () => {
+          relationshipSeeds.splice(index, 1);
+          renderRelationships();
+        });
+        item.appendChild(document.createTextNode(" "));
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+    }
+
+    document.getElementById("addRelBtn").addEventListener("click", () => {
+      const fromSlot = Number(document.getElementById("relFrom").value);
+      const toSlot = Number(document.getElementById("relTo").value);
+      const strength = Number(document.getElementById("relStrength").value);
+      if (![fromSlot, toSlot].every((slot) => Number.isInteger(slot) && slot >= 0 && slot <= 4)) {
+        updateStatus("Relationship slots must be integers between 0 and 4.", true);
+        return;
+      }
+      if (Number.isNaN(strength) || strength < -1 || strength > 1) {
+        updateStatus("Relationship strength must be between -1 and 1.", true);
+        return;
+      }
+      relationshipSeeds.push({
+        from_slot: fromSlot,
+        to_slot: toSlot,
+        strength,
+      });
+      renderRelationships();
+      updateStatus("Added relationship seed.");
+    });
+
+    document.getElementById("clearRelBtn").addEventListener("click", () => {
+      relationshipSeeds.splice(0, relationshipSeeds.length);
+      renderRelationships();
+      updateStatus("Cleared all relationships.");
+    });
+
+    function updateStatus(message, isError = false) {
+      statusBox.textContent = message;
+      statusBox.style.color = isError ? "#dc2626" : "#2563eb";
+    }
+
+    function handleError(err) {
+      console.error(err);
+      updateStatus(`Error: ${err.message}`, true);
+    }
+  </script>
+</body>
+</html>
