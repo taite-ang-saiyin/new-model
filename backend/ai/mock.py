@@ -145,32 +145,32 @@ class MockAIProvider(AIProvider):
     def generate_agent_action(self, request: AgentActionRequest) -> AgentActionResult:
         agent = request.agent
         verbs = [
-            "investigates",
-            "confronts",
-            "resembles",
-            "hacks",
-            "reframes",
-            "stabilizes",
+            ("checks", "check"),
+            ("talks through", "talk through"),
+            ("fixes", "fix"),
+            ("watches", "watch"),
+            ("calms", "calm"),
+            ("sets up", "set up"),
         ]
         contexts = [
-            "a critical subsystem",
-            "a rival's intentions",
-            "the mysterious artifact",
-            "a hidden comms channel",
-            "their own doubts",
-            "the faction alliance",
+            "the main console",
+            "the crew mood",
+            "the power relay",
+            "the radio channel",
+            "their own plan",
+            "the team meeting",
         ]
-        verb = self._rand.choice(verbs)
+        verb, base_verb = self._rand.choice(verbs)
         context = self._rand.choice(contexts)
         action_summary = f"{agent.name} {verb} {context}."
 
         emotional_shift = self._rand.choice(
             [
-                "heightened resolve",
-                "cautious optimism",
-                "latent suspicion",
-                "renewed curiosity",
-                "strategic doubt",
+                "more confident",
+                "cautious",
+                "a bit worried",
+                "curious",
+                "unsure",
             ]
         )
         agenda_delta = round(self._rand.uniform(-0.08, 0.15), 3)
@@ -179,26 +179,33 @@ class MockAIProvider(AIProvider):
             y=max(-100.0, min(100.0, agent.position.y + self._rand.uniform(-8.0, 8.0))),
         )
         detailed_log = (
-            f"{agent.name} reflects on earlier events and {verb} {context}, "
-            f"leading to {emotional_shift}."
+            f"{agent.name} slows down, {verb} {context}, and now feels {emotional_shift}."
         )
+        last_event = request.recent_events[-1].summary if request.recent_events else None
+        thought_process = [
+            "Remembers the last briefing.",
+        ]
+        if last_event:
+            thought_process.append(f"Thinks about what happened: {last_event}.")
+        thought_process.append(f"Decides to {base_verb} {context}.")
         return AgentActionResult(
             action_summary=action_summary,
             detailed_log=detailed_log,
             emotional_state=emotional_shift,
             agenda_progress_delta=agenda_delta,
             new_position=new_position,
+            thought_process=thought_process,
         )
 
     def corrode_memory(
         self, simulation: Simulation, agent: AgentProfile, action: AgentActionResult
     ) -> MemoryCorrosionResult:
         distortion_templates = [
-            "Insists the action succeeded flawlessly, dismissing any setbacks.",
-            "Believes another agent forced the move, downplaying personal responsibility.",
-            "Remembers taking a far bolder stance than reality shows.",
-            "Thinks the encounter was a trap, even without evidence.",
-            "Claims the event was inconsequential and barely recalls doing it.",
+            "Says the move went perfectly, even if it did not.",
+            "Blames the choice on someone else.",
+            "Remembers acting much braver than they were.",
+            "Feels like the scene was a trap without proof.",
+            "Shrugs and says the moment barely mattered.",
         ]
         distorted_memory = self._rand.choice(distortion_templates)
         reliability_delta = round(self._rand.uniform(-0.1, -0.02), 3)

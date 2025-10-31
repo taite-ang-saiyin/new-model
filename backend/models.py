@@ -95,6 +95,10 @@ class AgentActionResult(BaseModel):
     emotional_state: str
     agenda_progress_delta: float
     new_position: Position
+    thought_process: List[str] = Field(
+        default_factory=list,
+        description="Optional ordered steps describing the agent's internal reasoning.",
+    )
 
 
 class MemoryCorrosionResult(BaseModel):

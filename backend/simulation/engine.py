@@ -144,6 +144,18 @@ class SimulationEngine:
                 details=action_result.detailed_log,
             )
         )
+        if action_result.thought_process:
+            simulation.events.append(
+                SimulationEvent(
+                    type=EventType.AGENT,
+                    actor_id=agent.id,
+                    turn=simulation.turn_index,
+                    summary="Internal reasoning",
+                    details="\n".join(
+                        f"- {step}" for step in action_result.thought_process
+                    ),
+                )
+            )
 
         corrosion = self.provider.corrode_memory(simulation, agent, action_result)
         agent.corroded_memory = corrosion.distorted_memory
