@@ -144,18 +144,18 @@ class SimulationEngine:
                 details=action_result.detailed_log,
             )
         )
-        if action_result.thought_process:
-            simulation.events.append(
-                SimulationEvent(
-                    type=EventType.AGENT,
-                    actor_id=agent.id,
-                    turn=simulation.turn_index,
-                    summary="Internal reasoning",
-                    details="\n".join(
-                        f"- {step}" for step in action_result.thought_process
-                    ),
-                )
+        thought_steps = action_result.thought_process or self._default_thought_process(
+            request, action_result
+        )
+        simulation.events.append(
+            SimulationEvent(
+                type=EventType.AGENT,
+                actor_id=agent.id,
+                turn=simulation.turn_index,
+                summary="Internal reasoning",
+                details="\n".join(f"- {step}" for step in thought_steps),
             )
+        )
 
         corrosion = self.provider.corrode_memory(simulation, agent, action_result)
         agent.corroded_memory = corrosion.distorted_memory
@@ -293,3 +293,20 @@ class SimulationEngine:
                 )
             )
         return relationships
+
+    @staticmethod
+    def _default_thought_process(
+        request: AgentActionRequest, action: AgentActionResult
+    ) -> List[str]:
+        steps = ["Thinks about the mission plan."]
+        if request.recent_events:
+            steps.append(
+                f"Remembers the last change: {request.recent_events[-1].summary}."
+            )
+        action_text = action.action_summary.rstrip(".")
+        if action_text:
+            trimmed = action_text[:100]
+            steps.append(f"Chooses to follow through: {trimmed}.")
+        else:
+            steps.append("Chooses the next move.")
+        return steps
