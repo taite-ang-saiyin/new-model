@@ -132,6 +132,7 @@ class AgentState(AgentProfile):
     """Runtime agent state derived from the profile."""
 
     turn_count: int = 0
+    thought_process: List[str] = Field(default_factory=list)
 
 
 class AgentRelationshipSeed(BaseModel):

@@ -147,6 +147,7 @@ class SimulationEngine:
         thought_steps = action_result.thought_process or self._default_thought_process(
             request, action_result
         )
+        agent.thought_process = thought_steps
         simulation.events.append(
             SimulationEvent(
                 type=EventType.AGENT,
