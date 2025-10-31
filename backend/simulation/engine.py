@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from ..ai import AIProvider
 
@@ -59,26 +59,40 @@ class SimulationEngine:
             )
         )
 
-        profiles: List[AgentProfile] = []
+        profiles: List[AgentProfile]
+        slot_index_map: Dict[int, int]
         if agent_profiles:
-            profiles.extend(agent_profiles[:5])
-        if len(profiles) < 5:
+            if len(agent_profiles) > 5:
+                raise ValueError("A maximum of five agents is supported.")
+            profiles = agent_profiles[:5]
+            slot_index_map = {idx: idx for idx in range(len(profiles))}
+        elif customizations:
+            profiles, slot_index_map = self._build_profiles_from_customizations(
+                scenario, customizations
+            )
+        else:
             generated = self.provider.generate_agents(scenario, customizations)
-            needed = 5 - len(profiles)
-            profiles.extend(generated[:needed])
+            profiles = generated[:5]
+            slot_index_map = {idx: idx for idx in range(len(profiles))}
 
-        simulation.agents = [AgentState(**_as_dict(profile)) for profile in profiles[:5]]
+        if not profiles:
+            raise ValueError("At least one agent must be supplied to start a simulation.")
+
+        simulation.agents = [AgentState(**_as_dict(profile)) for profile in profiles]
         simulation.relationships = self._map_relationships(
-            simulation.agents, relationships
+            simulation.agents, relationships, slot_index_map
         )
         simulation.status = SimulationStatus.RUNNING
         simulation.updated_at = datetime.utcnow()
+        agent_count = len(simulation.agents)
         simulation.events.append(
             SimulationEvent(
                 type=EventType.SYSTEM,
                 turn=0,
                 summary="Agents initialized",
-                details="Five agents entered the scenario with distinct agendas.",
+                details=(
+                    f"{agent_count} agent{'s' if agent_count != 1 else ''} entered the scenario with distinct agendas."
+                ),
             )
         )
         if simulation.relationships:
@@ -183,24 +197,82 @@ class SimulationEngine:
         self.repository.update(simulation)
         return simulation
 
+    def _build_profiles_from_customizations(
+        self, scenario: str, customizations: List[AgentCustomization]
+    ) -> Tuple[List[AgentProfile], Dict[int, int]]:
+        if len(customizations) > 5:
+            raise ValueError("A maximum of five custom agents is supported.")
+        sorted_custom = sorted(customizations, key=lambda item: item.slot)
+        slot_index_map: Dict[int, int] = {}
+        profiles: List[AgentProfile] = []
+        scenario_context = (scenario.strip() or "the mission").rstrip(".")
+        for custom in sorted_custom:
+            if custom.slot in slot_index_map:
+                raise ValueError(
+                    f"Duplicate custom agent slot provided: {custom.slot}."
+                )
+            display_index = len(profiles) + 1
+            name = custom.name or f"Custom Agent {display_index}"
+            role = custom.role or "Specialist"
+            persona = custom.persona or (
+                f"Operative attuned to the demands of {scenario_context}."
+            )
+            cognitive_bias = custom.cognitive_bias or "balanced perspective"
+            emotional_state = custom.emotional_state or "neutral"
+            secret_agenda = custom.motivation or (
+                f"Advance personal leverage within {scenario_context}."
+            )
+            memory = f"Initial briefing on {scenario_context}."
+            traits = {"origin": "user_provided", "slot": custom.slot}
+            profile = AgentProfile(
+                name=name,
+                role=role,
+                persona=persona,
+                cognitive_bias=cognitive_bias,
+                emotional_state=emotional_state,
+                mbti=custom.mbti,
+                skills=custom.skills or [],
+                biography=custom.biography,
+                constraints=custom.constraints or [],
+                quirks=custom.quirks or [],
+                motivation=custom.motivation,
+                secret_agenda=secret_agenda,
+                memory=memory,
+                traits=traits,
+            )
+            profiles.append(profile)
+            slot_index_map[custom.slot] = len(profiles) - 1
+        return profiles, slot_index_map
+
     @staticmethod
     def _map_relationships(
-        agents: List[AgentState], seeds: List[AgentRelationshipSeed]
+        agents: List[AgentState],
+        seeds: List[AgentRelationshipSeed],
+        slot_index_map: Dict[int, int] | None = None,
     ) -> List[AgentRelationship]:
         if not agents or not seeds:
             return []
+        resolved_map: Dict[int, int] = slot_index_map or {
+            index: index for index in range(len(agents))
+        }
         relationships: List[AgentRelationship] = []
         agent_count = len(agents)
         for seed in seeds:
-            if seed.from_slot >= agent_count or seed.to_slot >= agent_count:
+            if seed.from_slot not in resolved_map or seed.to_slot not in resolved_map:
                 raise ValueError(
                     f"Relationship references slot {seed.from_slot}->{seed.to_slot} "
-                    f"but only {agent_count} agents are available."
+                    f"but available slots are {sorted(resolved_map.keys())}."
                 )
-            if seed.from_slot == seed.to_slot:
+            from_index = resolved_map[seed.from_slot]
+            to_index = resolved_map[seed.to_slot]
+            if from_index == to_index:
                 continue
-            source_id = agents[seed.from_slot].id
-            target_id = agents[seed.to_slot].id
+            if from_index >= agent_count or to_index >= agent_count:
+                raise ValueError(
+                    f"Relationship resolved to invalid agent index {from_index}->{to_index}."
+                )
+            source_id = agents[from_index].id
+            target_id = agents[to_index].id
             relationships.append(
                 AgentRelationship(
                     source_agent_id=source_id,
